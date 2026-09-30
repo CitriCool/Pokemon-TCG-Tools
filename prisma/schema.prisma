@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Player {
+  playPokemonId String   @id
+  name          String
+  createdAt     DateTime @default(now())
+
+  tournamentPlayers TournamentPlayer[]
+  decks            Deck[]
+}
+
+model Tournament {
+  id                String   @id @default(cuid())
+  name              String
+  format            String   @default("swiss")
+  date              DateTime @default(now())
+  status            String   @default("pending")
+  totalRounds       Int      @default(0)
+  currentRound      Int      @default(0)
+  topCutSize        Int      @default(8)
+  defaultRoundTimer Int      @default(30)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  players TournamentPlayer[]
+  rounds  Round[]
+}
+
+model TournamentPlayer {
+  id             String    @id @default(cuid())
+  tournamentId   String
+  playPokemonId  String
+  deckId         String?
+  verified       Boolean   @default(false)
+  verifiedAt     DateTime?
+  registeredBy   String    @default("owner")
+  wins           Int       @default(0)
+  losses         Int       @default(0)
+  ties           Int       @default(0)
+  points         Float     @default(0)
+  omwPercent     Float     @default(0)
+  oomwPercent    Float     @default(0)
+  createdAt      DateTime  @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  player     Player     @relation(fields: [playPokemonId], references: [playPokemonId], onDelete: Cascade)
+  deck       Deck?      @relation(fields: [deckId], references: [id])
+
+  matchesAsPlayer1 Match[] @relation("Player1Matches")
+  matchesAsPlayer2 Match[] @relation("Player2Matches")
+
+  @@unique([tournamentId, playPokemonId])
+}
+
+model Round {
+  id              String    @id @default(cuid())
+  tournamentId    String
+  roundNumber     Int
+  status          String    @default("pending")
+  timerMinutes    Int?
+  timerStartedAt  DateTime?
+  timerPausedAt   DateTime?
+  totalPausedTime Int       @default(0)
+  createdAt       DateTime  @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  matches    Match[]
+
+  @@unique([tournamentId, roundNumber])
+}
+
+model Match {
+  id        String  @id @default(cuid())
+  roundId   String
+  player1Id String
+  player2Id String
+  result    String  @default("unplayed")
+  tableNumber Int?
+
+  round   Round             @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  player1 TournamentPlayer @relation("Player1Matches", fields: [player1Id], references: [id])
+  player2 TournamentPlayer @relation("Player2Matches", fields: [player2Id], references: [id])
+}
+
+model Deck {
+  id            String   @id @default(cuid())
+  playPokemonId String
+  name          String
+  format        String   @default("standard")
+  list          String   @default("[]")
+  createdAt     DateTime @default(now())
+
+  player            Player             @relation(fields: [playPokemonId], references: [playPokemonId], onDelete: Cascade)
+  tournamentPlayers TournamentPlayer[]
+}
