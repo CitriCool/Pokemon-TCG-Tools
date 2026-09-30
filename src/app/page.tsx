@@ -1,65 +1,143 @@
-import Image from "next/image";
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-export default function Home() {
+export const dynamic = 'force-dynamic'
+
+const statusLabels: Record<string, string> = {
+  pending: "Pendiente",
+  active: "Activo",
+  complete: "Completado",
+};
+
+const statusVariants: Record<string, "secondary" | "default"> = {
+  pending: "secondary",
+  active: "default",
+  complete: "default",
+};
+
+export default async function HomePage() {
+  const [totalTournaments, activeTournaments, totalPlayers, totalDecks, recentTournaments] =
+    await Promise.all([
+      prisma.tournament.count(),
+      prisma.tournament.count({ where: { status: "active" } }),
+      prisma.player.count(),
+      prisma.deck.count(),
+      prisma.tournament.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        include: { _count: { select: { players: true } } },
+      }),
+    ]);
+
+  const stats = [
+    { label: "Torneos", value: totalTournaments, description: "Total de torneos creados" },
+    { label: "Activos", value: activeTournaments, description: "Torneos en curso" },
+    { label: "Jugadores", value: totalPlayers, description: "Jugadores registrados" },
+    { label: "Barajas", value: totalDecks, description: "Barajas subidas" },
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="space-y-8 p-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Pokémon TCG Tools</h1>
+        <p className="text-muted-foreground mt-1">
+          Gestiona torneos, jugadores y barajas
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat) => (
+          <Card key={stat.label}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {stat.label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{stat.value}</div>
+              <CardDescription>{stat.description}</CardDescription>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Acciones rápidas</h2>
+        <div className="flex gap-3">
+          <Link
+            href="/torneos/nuevo"
+            className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground h-8 px-2.5 text-sm font-medium whitespace-nowrap transition-all hover:bg-primary/80"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            Crear Torneo
+          </Link>
+          <Link
+            href="/torneos"
+            className="inline-flex items-center justify-center rounded-lg border border-border bg-background h-8 px-2.5 text-sm font-medium whitespace-nowrap transition-all hover:bg-muted"
           >
-            Documentation
-          </a>
+            Ver Torneos
+          </Link>
         </div>
-      </main>
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Torneos recientes</h2>
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Jugadores</TableHead>
+                <TableHead>Fecha</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recentTournaments.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    No hay torneos todavía
+                  </TableCell>
+                </TableRow>
+              ) : (
+                recentTournaments.map((tournament) => (
+                  <TableRow key={tournament.id}>
+                    <TableCell className="font-medium">{tournament.name}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariants[tournament.status] ?? "secondary"} className={tournament.status === "active" ? "bg-green-600 hover:bg-green-700" : ""}>
+                        {statusLabels[tournament.status] ?? tournament.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{tournament._count.players}</TableCell>
+                    <TableCell>
+                      {new Date(tournament.date).toLocaleDateString("es-ES", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+      </div>
     </div>
   );
 }
